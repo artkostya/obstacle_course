@@ -84,3 +84,22 @@ xcuserdata/
 
 # macOS
 .DS_Store
+
+# IntelliJ IDEA / PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Virtual env of Python
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# Cache of Python and byte code
+pycache/
+*.py[cod]
+*$py.class
+
