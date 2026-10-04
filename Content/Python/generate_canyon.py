@@ -10,9 +10,10 @@ if  t.TYPE_CHECKING:
 """
 Configuration
 """
+CONTENT_ROOT_PATH = "/Game/ObstacleCourse"
 
 # Generated Actors / World Outliner folders
-GENERATED_FOLDER_ROOT = "Generated/DodgeRock"
+GENERATED_FOLDER_ROOT = "Generated"
 GENERATED_FOLDER_TREES = GENERATED_FOLDER_ROOT + "/Trees"
 GENERATED_FOLDER_BOULDERS = GENERATED_FOLDER_ROOT + "/Boulders"
 GENERATED_FOLDER_CLIFFS = GENERATED_FOLDER_ROOT + "/Cliffs"
@@ -29,8 +30,8 @@ ROAD_LAYER_NAME = "Dirt"
 # 900 UU radius => 1800 UU total spline width.
 ROAD_WIDTH = 1400.0
 
-# Увеличиваем спад (falloff) для размытия границ дороги
-ROAD_SIDE_FALLOFF = 500.0  # Было 200.0. Делает переход текстуры более мягким.
+# Increase the falloff to blur road edges
+ROAD_SIDE_FALLOFF = 500.0  # Makes texture transition softer.
 ROAD_END_FALLOFF = 0.0
 
 # IMPORTANT: False = do not modify Landscape height.
@@ -50,24 +51,13 @@ Leave as "None" to let Unreal use the default behavior.
 ROAD_EDIT_LAYER_NAME = "Layer"
 
 # Assets
-TREE_ASSET = (
-    "/Game/BlackAlder/Geometry/SimpleWind/"
-    "SM_BlackAlder_Field_02.SM_BlackAlder_Field_02"
-)
-
-BOULDER_ASSET = (
-    "/Game/Fab/Megascans/3D/Mossy_Forest_Rock/"
-    "Medium/SM_Boulder.SM_Boulder"
-)
-
-CLIFF_ASSET = (
-    "/Game/Fab/Megascans/3D/Quarry_Cliff_ubjuddqda/"
-    "High/SM_Quarry_Cliff.SM_Quarry_Cliff"
-)
+TREE_ASSET = f"{CONTENT_ROOT_PATH}/Materials/SM_Pine_Tree_01.SM_Pine_Tree_01"
+BOULDER_ASSET = f"{CONTENT_ROOT_PATH}/Materials/SM_NordicBoulder.SM_NordicBoulder"
+CLIFF_ASSET = f"{CONTENT_ROOT_PATH}/Materials/SM_Quarry_Cliff.SM_Quarry_Cliff"
 
 
 # Generation counts
-TREE_COUNT = 180
+TREE_COUNT = 280
 BOULDER_COUNT = 60
 
 
@@ -83,16 +73,16 @@ Trees:
 """
 TREE_MIN_OFFSET = 1200.0
 TREE_MAX_OFFSET = 2100.0
-TREE_MIN_DISTANCE = 350.0
+TREE_MIN_DISTANCE = 150.0
 TREE_MIN_SCALE = 0.85
 TREE_MAX_SCALE = 1.15
-TREE_GROUND_OFFSET = 5.0
+TREE_GROUND_OFFSET = 30.0
 
 # Boulder placement
 BOULDER_MIN_OFFSET = 1200.0
-BOULDER_MAX_OFFSET = 2200.0
-BOULDER_MIN_SCALE = 0.75
-BOULDER_MAX_SCALE = 1.25
+BOULDER_MAX_OFFSET = 2000.0
+BOULDER_MIN_SCALE = 1.75
+BOULDER_MAX_SCALE = 2.25
 BOULDER_GROUND_OFFSET = 5.0
 
 # Landscape trace
@@ -128,8 +118,8 @@ CLIFF_OUTER_MAX_OFFSET = 3700.0
 CLIFF_OUTER_MIN_SCALE = 0.55
 CLIFF_OUTER_MAX_SCALE = 0.90
 
-# Заглубляем скалы вниз, чтобы избежать щелей снизу
-CLIFF_GROUND_OFFSET = -150.0  # Было 0.0. Скала глубже садится в землю.
+# We deepen rocks downwards to avoid cracks at bottom
+CLIFF_GROUND_OFFSET = -150.0  # Was 0.0. Rock sinks deeper into the ground
 CLIFF_MIN_DISTANCE = 260.0
 
 CLIFF_LENGTH = 1273.0
@@ -137,6 +127,8 @@ CLIFF_OVERLAP = 250.0
 
 # Little roll by height
 CLIFF_Z_JITTER = 20.0
+
+IS_GAMEPLAY_GENERATION_ENABLED = False
 
 # Gameplay corridor
 GAMEPLAY_WIDTH = 1200.0
@@ -247,7 +239,7 @@ def find_landscape_layer_info(landscape, layer_name):
     """
     Finds Landscape Layer Info
     """
-    layer_info_path = f"/Game/DodgeRock/Landscape/Layers/LI_{layer_name}.LI_{layer_name}"
+    layer_info_path = f"{CONTENT_ROOT_PATH}/Landscape/Resources/LI_{layer_name}.LI_{layer_name}"
     unreal.log(f"Loading Landscape Layer Info: {layer_info_path}")
 
     layer_info = unreal.EditorAssetLibrary.load_asset(layer_info_path)
@@ -703,7 +695,7 @@ def spawn_tree(tree_mesh, location, scale_value, tree_index):
         return None
 
     actor.tags = [GENERATED_TAG, GENERATED_TREE_TAG]
-    actor.set_actor_label(f"SM_Tree_{tree_index:03d}")
+    actor.set_actor_label(f"SMA_Tree_{tree_index:03d}")
     actor.set_actor_scale3d(unreal.Vector(scale_value, scale_value, scale_value))
 
     # World Outliner folder
@@ -717,7 +709,7 @@ def spawn_boulder(boulder_mesh, location, scale_value, boulder_index):
     Spawn boulder
     """
     rotation = unreal.Rotator(random.uniform(0.0, 360.0), random.uniform(0.0, 360.0), random.uniform(0.0, 360.0))
-    spawn_location = unreal.Vector(location.x, location.y, location.z + BOULDER_GROUND_OFFSET)
+    spawn_location = unreal.Vector(location.x, location.y, random.uniform(0.0, BOULDER_GROUND_OFFSET))
 
     actor = unreal.EditorLevelLibrary.spawn_actor_from_object(boulder_mesh, spawn_location, rotation)
     if actor is None:
@@ -1435,7 +1427,7 @@ def draw_gameplay_corridor(spline_component, spline_length):
 
 def main():
     unreal.log("\n========================================")
-    unreal.log("DODGE ROCK GENERATOR")
+    unreal.log("CANYON GENERATOR")
     unreal.log("========================================")
 
     # Random
@@ -1481,7 +1473,10 @@ def main():
     tree_count = generate_trees(spline_component, tree_mesh, spline_length)
     boulder_count = generate_boulders(spline_component, boulder_mesh, spline_length)
     cliff_count = generate_cliffs(spline_component, cliff_mesh)
-    rocks_count = generate_gameplay_rocks(spline_component, spline_length, boulder_mesh)
+
+    rocks_count = 0
+    if IS_GAMEPLAY_GENERATION_ENABLED:
+        rocks_count = generate_gameplay_rocks(spline_component, spline_length, boulder_mesh)
 
     unreal.log("\n========================================")
     unreal.log("GENERATION FINISHED")
@@ -1491,7 +1486,9 @@ def main():
     unreal.log(f"      Boulders: {boulder_count} / {BOULDER_COUNT}")
     unreal.log(f"        Cliffs: {cliff_count}")
     unreal.log(f" Spline length: {spline_length:.2f} UU")
-    unreal.log(f"Gameplay rocks: {rocks_count} / {GAMEPLAY_ROCK_COUNT}")
+
+    if IS_GAMEPLAY_GENERATION_ENABLED:
+        unreal.log(f"Gameplay rocks: {rocks_count} / {GAMEPLAY_ROCK_COUNT}")
 
     unreal.log(f"\n"
                f" Road painting: {'ON' if ROAD_PAINT_ENABLED else 'OFF'}")
@@ -1509,7 +1506,9 @@ def main():
     unreal.log(f"         Trees: {GENERATED_FOLDER_TREES}")
     unreal.log(f"      Boulders: {GENERATED_FOLDER_BOULDERS}")
     unreal.log(f"        Cliffs: {GENERATED_FOLDER_CLIFFS}")
-    unreal.log(f"Gameplay rocks: {GAMEPLAY_ROCK_FOLDER}")
+
+    if IS_GAMEPLAY_GENERATION_ENABLED:
+        unreal.log(f"Gameplay rocks: {GAMEPLAY_ROCK_FOLDER}")
 
     unreal.log("========================================")
     unreal.log("DONE")
